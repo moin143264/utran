@@ -15,7 +15,6 @@ require('./models/Feedback');
 
 // Initialize express app
 const app = express();
-// TEMPORARY DEBUG MIDDLEWARE - ADD THIS AT THE VERY TOP
 
 // Connect to MongoDB
 connectDB();
@@ -133,9 +132,10 @@ app.set('io', io);
 
 // Start server
 const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0'; // Listen on all network interfaces
 
-server.listen(PORT, () => {
-    console.log(`Server is running on http://${HOST}}`);
+server.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
     // Log the actual IP addresses for easier connection
     const { networkInterfaces } = require('os');
     const nets = networkInterfaces();
