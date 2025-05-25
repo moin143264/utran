@@ -15,7 +15,14 @@ require('./models/Feedback');
 
 // Initialize express app
 const app = express();
-
+// TEMPORARY DEBUG MIDDLEWARE - ADD THIS AT THE VERY TOP
+app.use((req, res, next) => {
+    if (req.url.startsWith('/socket.io')) {
+        console.log(`[SERVER_DEBUG] Incoming Socket.IO-related request: ${req.method} ${req.url}`);
+        console.log(`[SERVER_DEBUG] Headers: ${JSON.stringify(req.headers)}`);
+    }
+    next();
+});
 // Connect to MongoDB
 connectDB();
 
