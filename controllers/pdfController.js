@@ -10,60 +10,102 @@ const path = require('path');
 // @access  Private/Organizer
 exports.generateCompetitionReport = async (req, res) => {
     try {
-        const competition = await Competition.findById(req.params.id)
-            .populate('teams', 'name')
-            .populate('organizer', 'name email');
-
-        if (!competition) {
-            return res.status(404).json({ message: 'Competition not found' });
+        console.log(`[PDF] Generating competition report for competition ID: ${req.params.id}, type: ${req.params.type}`);
+        
+        if (!req.params.id) {
+            return res.status(400).json({ message: 'Competition ID is required' });
         }
-
-        // Check if organizer exists before trying to access its properties
-        if (!competition.organizer) {
-            return res.status(500).json({ message: 'Competition data is incomplete: Organizer missing.' });
+        
+        if (!req.params.type) {
+            return res.status(400).json({ message: 'Report type is required' });
         }
-
-        // Check authorization
-        if (competition.organizer._id.toString() !== req.user.id && req.user.role !== 'admin') {
-            return res.status(401).json({ message: 'Not authorized to generate this report' });
+        
+        // Validate report type
+        const validTypes = ['summary', 'schedule', 'results', 'statistics', 'bracket'];
+        if (!validTypes.includes(req.params.type)) {
+            return res.status(400).json({ 
+                message: `Invalid report type. Must be one of: ${validTypes.join(', ')}` 
+            });
         }
+        
+        try {
+            const competition = await Competition.findById(req.params.id)
+                .populate('teams', 'name')
+                .populate('organizer', 'name email');
 
-        const matches = await Match.find({ competition: competition._id })
-            .populate('team1.team team2.team', 'name')
-            .populate('winner', 'name')
-            .sort('round matchNumber');
-
-        const { filename, path: filePath, expiryTime, downloadToken } = await generateCompetitionReport(competition, matches, req.params.type);
-
-        // Store file metadata in memory (in production, use Redis or similar)
-        global.pdfFiles = global.pdfFiles || new Map();
-        global.pdfFiles.set(downloadToken, {
-            filePath,
-            filename,
-            expiryTime,
-            competitionId: competition._id,
-            organizerId: competition.organizer._id
-        });
-
-        // Schedule file deletion after expiry
-        setTimeout(async () => {
-            try {
-                await fs.unlink(filePath);
-                global.pdfFiles.delete(downloadToken);
-            } catch (error) {
-                console.error('Error deleting expired PDF:', error);
+            if (!competition) {
+                return res.status(404).json({ message: 'Competition not found' });
             }
-        }, expiryTime - Date.now());
 
-        // Return download URL with token
-        res.json({
-            message: 'PDF generated successfully',
-            downloadUrl: `/api/pdf/download/${downloadToken}`,
-            filename,
-            expiryTime
-        });
+            // Check if organizer exists before trying to access its properties
+            if (!competition.organizer) {
+                return res.status(500).json({ message: 'Competition data is incomplete: Organizer missing.' });
+            }
+
+            // Check authorization
+            if (req.user && competition.organizer._id.toString() !== req.user.id && req.user.role !== 'admin') {
+                return res.status(401).json({ message: 'Not authorized to generate this report' });
+            }
+
+            console.log(`[PDF] Fetching matches for competition: ${competition.name}`);
+            const matches = await Match.find({ competition: competition._id })
+                .populate('team1.team team2.team', 'name')
+                .populate('winner', 'name')
+                .sort('round matchNumber');
+
+            console.log(`[PDF] Found ${matches.length} matches for competition`);
+            console.log(`[PDF] Generating PDF report of type: ${req.params.type}`);
+            
+            const { filename, path: filePath, expiryTime, downloadToken } = await generateCompetitionReport(competition, matches, req.params.type);
+            console.log(`[PDF] Report generated successfully: ${filename}`);
+
+            // Store file metadata in memory (in production, use Redis or similar)
+            global.pdfFiles = global.pdfFiles || new Map();
+            global.pdfFiles.set(downloadToken, {
+                filePath,
+                filename,
+                expiryTime,
+                competitionId: competition._id,
+                organizerId: competition.organizer._id
+            });
+            console.log(`[PDF] File metadata stored with token: ${downloadToken}`);
+
+            // Schedule file deletion after expiry
+            setTimeout(async () => {
+                try {
+                    await fs.unlink(filePath);
+                    global.pdfFiles.delete(downloadToken);
+                    console.log(`[PDF] Expired file deleted: ${filename}`);
+                } catch (error) {
+                    console.error('Error deleting expired PDF:', error);
+                }
+            }, expiryTime - Date.now());
+
+            // Return download URL with token
+            const downloadUrl = `/api/pdf/download/${downloadToken}`;
+            console.log(`[PDF] Returning download URL: ${downloadUrl}`);
+            
+            return res.json({
+                message: 'PDF generated successfully',
+                downloadUrl,
+                filename,
+                expiryTime
+            });
+        } catch (dbError) {
+            console.error('[PDF] Database error:', dbError);
+            return res.status(500).json({
+                message: 'Error fetching competition data',
+                error: dbError.message,
+                stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+            });
+        }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('[PDF] Unhandled error in generateCompetitionReport:', error);
+        return res.status(500).json({ 
+            message: 'An unexpected error occurred while generating the report',
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -76,59 +118,92 @@ exports.generateCompetitionReport = async (req, res) => {
 exports.downloadPDF = async (req, res) => {
     try {
         const { token } = req.params;
+        console.log(`[PDF] Download request received for token: ${token}`);
+        
+        if (!token) {
+            return res.status(400).json({ message: 'Download token is required' });
+        }
         
         // Check if PDF exists and is not expired
         const pdfData = global.pdfFiles?.get(token);
         if (!pdfData) {
+            console.log(`[PDF] Token not found in memory: ${token}`);
             return res.status(404).json({ message: 'PDF not found or has expired' });
         }
 
         const { filePath, filename, expiryTime, organizerId } = pdfData;
+        console.log(`[PDF] Token found. File: ${filename}, Path: ${filePath}`);
 
         // Check if file has expired
         if (Date.now() > expiryTime) {
+            console.log(`[PDF] File has expired: ${filename}`);
             global.pdfFiles.delete(token);
             try {
                 await fs.unlink(filePath);
+                console.log(`[PDF] Expired file deleted: ${filename}`);
             } catch (error) {
-                console.error('Error deleting expired file:', error);
+                console.error('[PDF] Error deleting expired file:', error);
             }
             return res.status(404).json({ message: 'PDF has expired' });
         }
 
-        // Authorization is now implicitly handled by the validity of the token
-        // and the organizerId stored with it. If a specific user check is still needed,
-        // it would have to be done differently without req.user from 'protect' middleware.
-        // For now, we assume the token's existence and non-expiry is sufficient for download.
-
         // Check if file physically exists before attempting to send
         try {
-            await fs.access(filePath);
+            console.log(`[PDF] Checking if file exists: ${filePath}`);
+            const fileStats = await fs.stat(filePath);
+            console.log(`[PDF] File exists, size: ${fileStats.size} bytes`);
+            
+            // Additional check to ensure file is not empty
+            if (fileStats.size === 0) {
+                console.error(`[PDF] File exists but is empty: ${filePath}`);
+                global.pdfFiles.delete(token);
+                return res.status(500).json({ message: 'Generated PDF file is empty' });
+            }
         } catch (fileAccessError) {
-            console.error('File not accessible at path:', filePath, fileAccessError);
+            console.error('[PDF] File not accessible:', fileAccessError);
             global.pdfFiles.delete(token); // Clean up stale token
-            return res.status(404).json({ message: 'Physical PDF file not found or inaccessible.' });
+            return res.status(404).json({ 
+                message: 'Physical PDF file not found or inaccessible',
+                details: fileAccessError.message 
+            });
         }
 
+        console.log(`[PDF] Sending file to client: ${filename}`);
+        // Set appropriate headers
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
         // Send file
         res.download(filePath, filename, async (err) => {
             if (err) {
-                console.error('Error downloading file:', err);
+                console.error('[PDF] Error during download:', err);
                 if (!res.headersSent) {
-                    res.status(500).json({ message: 'Error downloading file' });
+                    return res.status(500).json({ 
+                        message: 'Error downloading file',
+                        details: err.message 
+                    });
                 }
+            } else {
+                console.log(`[PDF] File successfully sent to client: ${filename}`);
             }
+            
             // Delete file and token after download
             try {
+                console.log(`[PDF] Cleaning up after download: ${filePath}`);
                 await fs.unlink(filePath);
                 global.pdfFiles.delete(token);
+                console.log(`[PDF] Cleanup complete`);
             } catch (error) {
-                console.error('Error cleaning up after download:', error);
+                console.error('[PDF] Error cleaning up after download:', error);
             }
         });
     } catch (error) {
-        console.error('Download error:', error);
-        res.status(500).json({ message: error.message });
+        console.error('[PDF] Unhandled error in downloadPDF:', error);
+        return res.status(500).json({ 
+            message: 'An unexpected error occurred during download',
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
