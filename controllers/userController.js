@@ -1,7 +1,6 @@
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
-const cloudinary = require('../utils/cloudinary');
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -30,23 +29,6 @@ exports.updateUserProfile = async (req, res) => {
 
         user.name = req.body.name || user.name;
         user.email = req.body.email || user.email;
-        
-        // Handle image upload
-        if (req.body.image) {
-            try {
-                // Upload image to Cloudinary
-                const result = await cloudinary.uploader.upload(req.body.image, {
-                    folder: 'utran-app/users',
-                    width: 300,
-                    crop: 'scale'
-                });
-                user.image = result.secure_url;
-            } catch (error) {
-                console.error('Image upload error:', error);
-                return res.status(400).json({ message: 'Image upload failed' });
-            }
-        }
-
         if (req.body.password) {
             const salt = await bcrypt.genSalt(10);
             user.password = await bcrypt.hash(req.body.password, salt);
@@ -57,8 +39,7 @@ exports.updateUserProfile = async (req, res) => {
             _id: updatedUser._id,
             name: updatedUser.name,
             email: updatedUser.email,
-            role: updatedUser.role,
-            image: updatedUser.image
+            role: updatedUser.role
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
