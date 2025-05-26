@@ -6,7 +6,7 @@ const nodemailer = require('nodemailer');
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-exports const register = async (req, res) => {
+exports.register = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -55,7 +55,7 @@ exports const register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports const login = async (req, res) => {
+exports.login = async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -102,7 +102,7 @@ exports const login = async (req, res) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-const getMe = async (req, res) => {
+exports.getMe = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         res.json(user);
@@ -114,7 +114,7 @@ const getMe = async (req, res) => {
 // @desc    Forgot password
 // @route   POST /api/auth/forgot-password
 // @access  Public
-exports const forgotPassword = async (req, res) => {
+exports.forgotPassword = async (req, res) => {
     try {
         const user = await User.findOne({ email: req.body.email });
 
@@ -158,7 +158,7 @@ exports const forgotPassword = async (req, res) => {
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
-exports const logout = async (req, res) => {
+exports.logout = async (req, res) => {
     // Clear the JWT cookie
     res.cookie('token', '', {
         httpOnly: true,
@@ -170,7 +170,7 @@ exports const logout = async (req, res) => {
     res.json({ message: 'Logged out successfully' });
 };
 
-exports const resetPassword = async (req, res) => {
+exports.resetPassword = async (req, res) => {
     try {
         const { token, newPassword } = req.body;
 
