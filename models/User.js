@@ -23,10 +23,6 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'admin', 'organizer'],
         default: 'user'
     },
-    image: {
-        type: String,
-        default: null
-    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     createdAt: {
