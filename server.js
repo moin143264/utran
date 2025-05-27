@@ -20,15 +20,19 @@ const app = express();
 connectDB();
 
 // Middleware
+app.use(cors());
 
 const corsOptions = {
     origin: ['http://localhost:19006', 'https://utran.vercel.app'],
     credentials: true,
     optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 };
+app.use(cors({credentials: true, origin: true}));
+
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+app.use(crede)
 app.use(express.urlencoded({ extended: true }));
 
 // This middleware will be added later after io is initialized
@@ -49,8 +53,8 @@ app.use('/api/competitions', require('./routes/competitionRoutes'));
 app.use('/api/matches', require('./routes/matchRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));
 app.use('/api/teams', require('./routes/teamRoutes'));
-app.use('/api/pdf', require('./routes/pdfRoutes'));
 app.use('/api/cloudinary', require('./routes/cloudinaryRoutes'));
+app.use('/api/pdf', require('./routes/pdfRoutes'));
 
 
 // Error handling middleware
