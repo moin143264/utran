@@ -11,7 +11,7 @@ router.get('/signature', protect, (req, res) => {
     try {
         // --- TEMPORARY DIAGNOSTIC SECTION START ---
         const cloudinary = require('cloudinary').v2;
-        const tempCloudName = 'utran-app';
+        const tempCloudName = 'drh5ntram'; // CORRECTED CLOUD NAME
         const tempApiKey = '414738459261494';
         const tempApiSecret = 'bzZZeqmXUIBWWXaf0P8mwEruc1s';
         const tempUploadPreset = 'ml_default'; // from user's .env
