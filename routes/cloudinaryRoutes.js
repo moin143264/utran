@@ -10,19 +10,9 @@ const router = express.Router();
 router.get('/signature', protect, (req, res) => {
     try {
         const timestamp = Math.round(new Date().getTime() / 1000);
-        const { signature, params } = generateSignature(timestamp);
+        const signatureData = generateSignature(timestamp);
         
-        res.json({
-            timestamp,
-            signature,
-            ...params, // Include all the signed parameters
-            api_key: process.env.CLOUDINARY_API_KEY,
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'utran-app',
-            upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET || 'ml_default',
-            folder: 'user-profiles',
-            allowed_formats: ['jpg', 'jpeg', 'png'],
-            max_file_size: 10485760 // 10MB
-        });
+        res.json(signatureData);
     } catch (error) {
         console.error('Error generating Cloudinary signature:', error);
         res.status(500).json({ 
