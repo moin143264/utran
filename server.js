@@ -45,6 +45,7 @@ app.use('/api/matches', require('./routes/matchRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));
 app.use('/api/teams', require('./routes/teamRoutes'));
 app.use('/api/pdf', require('./routes/pdfRoutes'));
+app.use('/api/cloudinary', require('./routes/cloudinaryRoutes'));
 
 
 // Error handling middleware
