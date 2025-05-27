@@ -32,7 +32,6 @@ app.use(cors({credentials: true, origin: true}));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-app.use(crede)
 app.use(express.urlencoded({ extended: true }));
 
 // This middleware will be added later after io is initialized
