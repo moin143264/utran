@@ -1,5 +1,4 @@
 const cloudinary = require('cloudinary').v2;
-const crypto = require('crypto');
 require('dotenv').config();
 
 // Configure cloudinary
@@ -13,45 +12,46 @@ cloudinary.config({
 // Generate signature for client-side upload
 const generateSignature = (timestamp) => {
     try {
+        // Aligning with Cloudinary's error: only sign timestamp and upload_preset
         const paramsToSign = {
-            timestamp: timestamp.toString(),
+            timestamp: timestamp.toString(), // Must be a string
             upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET || 'ml_default',
-            folder: 'user-profiles', // This will be signed
-            allowed_formats: 'jpg,jpeg,png', // This will be signed
-            max_file_size: '10485760', // This will be signed
-            tags: 'user_profile' // This will be signed
+            // Temporarily removing other parameters from signing, based on Cloudinary error
+            // folder: 'user-profiles',
+            // allowed_formats: 'jpg,jpeg,png',
+            // max_file_size: '10485760',
+            // tags: 'user_profile'
         };
 
-        // Create the string to sign: parameters sorted alphabetically and joined by '&'
-        const stringToSign = Object.keys(paramsToSign)
-            .sort()
-            .map(key => `${key}=${paramsToSign[key]}`)
-            .join('&');
+        console.log('Parameters being sent to Cloudinary SDK for signing (minimal):', paramsToSign);
 
-        console.log('String to sign for Cloudinary:', stringToSign);
-        
-        // Create the signature using SHA1
-        const signature = crypto
-            .createHash('sha1')
-            .update(stringToSign + process.env.CLOUDINARY_API_SECRET) // Append API secret before hashing
-            .digest('hex');
+        const signature = cloudinary.utils.api_sign_request(
+            paramsToSign,
+            process.env.CLOUDINARY_API_SECRET
+        );
 
-        console.log('Generated Cloudinary signature:', signature);
-        
-        // Return the signature and all parameters that were signed, plus api_key and cloud_name
+        console.log('Generated Cloudinary signature (minimal, via SDK):', signature);
+
+        // Return only the signed params, signature, api_key, and cloud_name.
+        // The frontend will also need to be adjusted to only send these signed params.
         return {
             signature,
-            ...paramsToSign, // includes timestamp, upload_preset, folder, allowed_formats, max_file_size, tags
+            timestamp: paramsToSign.timestamp,
+            upload_preset: paramsToSign.upload_preset,
             api_key: process.env.CLOUDINARY_API_KEY,
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'utran-app'
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'utran-app',
+            // Other parameters (folder, tags, etc.) will be sent by frontend but NOT signed
+            // This means they might be ignored by Cloudinary or might need to be configured
+            // in the upload preset if they are desired.
+            folder: 'user-profiles', // Still send to frontend, for it to include in FormData (unsigned)
+            allowed_formats: 'jpg,jpeg,png', // Still send to frontend (unsigned)
+            max_file_size: '10485760', // Still send to frontend (unsigned)
+            tags: 'user_profile' // Still send to frontend (unsigned)
         };
     } catch (error) {
-        console.error('Error generating Cloudinary signature:', error);
+        console.error('Error generating Cloudinary signature (minimal):', error);
         throw error;
     }
 };
 
-module.exports = {
-    generateSignature,
-    cloudinary
-};
+module.exports = { generateSignature, cloudinary };
