@@ -27,8 +27,16 @@ exports.updateUserProfile = async (req, res) => {
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
+        // Update basic fields if provided
         user.name = req.body.name || user.name;
         user.email = req.body.email || user.email;
+        
+        // Update profile image if provided
+        if (req.body.profileImage !== undefined) {
+            user.profileImage = req.body.profileImage;
+        }
+
+        // Update password if provided
         if (req.body.password) {
             const salt = await bcrypt.genSalt(10);
             user.password = await bcrypt.hash(req.body.password, salt);
@@ -39,7 +47,8 @@ exports.updateUserProfile = async (req, res) => {
             _id: updatedUser._id,
             name: updatedUser.name,
             email: updatedUser.email,
-            role: updatedUser.role
+            role: updatedUser.role,
+            profileImage: updatedUser.profileImage
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
