@@ -198,7 +198,7 @@ exports.login = async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            createdAt: user.createdAt,
+            profileImage: user.profileImage,
             token
         });
     } catch (error) {
@@ -229,8 +229,8 @@ exports.forgotPassword = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Generate 6-digit OTP
-        const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+        // Generate reset token
+        const resetToken = Math.random().toString(36).slice(-8);
         user.resetPasswordToken = resetToken;
         user.resetPasswordExpire = Date.now() + 3600000; // 1 hour
 
@@ -249,8 +249,8 @@ exports.forgotPassword = async (req, res) => {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: user.email,
-            subject: 'Password Reset OTP',
-            text: `Your password reset OTP is: ${resetToken}\n\nThis OTP will expire in 1 hour.`
+            subject: 'Password Reset Token',
+            text: `Your password reset token is: ${resetToken}\n\nThis token will expire in 1 hour.`
         });
 
         res.json({ message: 'Password reset email sent' });
