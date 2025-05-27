@@ -13,9 +13,13 @@ router.get('/signature', protect, (req, res) => {
         const signature = generateSignature(timestamp);
         res.json({
             timestamp,
-            signature
+            signature,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'utran-app',
+            upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET || 'ml_default'
         });
     } catch (error) {
+        console.error('Error generating Cloudinary signature:', error);
         res.status(500).json({ message: error.message });
     }
 });
